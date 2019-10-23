@@ -405,14 +405,14 @@ const dataflow = ( (  ) => {
 
 	if ( not ( FLAGEMPTY ) ) {
 
-	    if ( ( data.out.cnpj == cnpj ) &&
+	    if ( ( completeZeros ( data.out.cnpj ) == completeZeros ( cnpj ) ) &&
 		 ( data.out.id == id ) ) {
 		return  schemaSearchData ( true, data.out )
 	    } else {
 
 		for ( let i = 0; i < data.history.length; i++ ) {
 
-		    if ( ( data.history[i].cnpj == cnpj ) &&
+		    if ( ( completeZeros ( data.history[i].cnpj ) == completeZeros ( cnpj ) ) &&
 			 ( data.history[i].id == id ) ) 
 			return schemaSearchData ( true, data.history[i] )
 		}
@@ -780,7 +780,7 @@ const menuComand = args => {
 
     const errorInMatchArg = args => mathes => {
 
-	return args == mathes
+	return ( ( mathes > 0 ) && ( args == mathes ) )
     }
 
     const existObjt = something => typeof ( something ) != 'undefined'
@@ -800,6 +800,8 @@ const menuComand = args => {
 	stringAA += '\n   --test|-t\t: testa funcionalidades'
 	stringAA += '\n   --config|-c\t: configura aplicacao,'
 	stringAA += '\n                  parametros separados por virgula.'
+	stringAA += '\n   --request|-r\t: faz requisicoes a API'
+	stringAA += '\n   --export|-e\t: gera arquivo csv/xls'
 	stringAA += '\n                  '
 
 	
@@ -807,6 +809,7 @@ const menuComand = args => {
 
 	flagStop (  )
     }
+
 
     const configureMenu = optiones => {
 
@@ -834,6 +837,8 @@ const menuComand = args => {
 	    stringAA += '\n\t\tde configuracao'
 	    stringAA += '\n   configFile\t: seleciona arquivo de '
 	    stringAA += '\n\t\tconfiguracao '
+	    stringAA += '\n   showConfig: mostra arquivo de configuracao'
+	    stringAA += '\n\t\tutilizado '
 	    stringAA += '\n                  '
 
 	    print ( stringAA )
@@ -857,6 +862,28 @@ const menuComand = args => {
 	    } )
 	}
 
+	const configGeneralTool = optiona => valuest => {
+ 
+	    const newConf = configurations.config ( )
+
+	    newConf.configFile = savename
+
+	    configurations.loadConfigurations ( newConf )
+
+	    return new Promise ( ( rest, errt ) => {
+		
+		saveConfigFile ( savename )
+		    .then ( es => rest ( es ) )
+		    .catch ( err => errt ( err ) )
+	    } )
+	    
+	    newConf.configFile = savename
+
+	    configurations.loadConfigurations ( newConf )
+
+	    print ( configurations.config (  ) )
+	}
+
 	const configFileTool = ( savename = configurations.config ( ).configFile ) => {
 
 	    const newConf = configurations.config ( )
@@ -870,6 +897,25 @@ const menuComand = args => {
 
 	const getResultStatus = schemaGetResultStandat
 
+
+	const showConfig = something => {
+
+	    print ( something )
+	    if ( something )
+		helpConfig ( { status: false } )
+	    
+	    print ( configurations.config (  ) )
+	}
+
+	const showName = something => {
+
+	    print ( something )
+	    if ( something )
+		helpConfig ( { status: false } )
+
+	    print ( configurations.config (  ) )
+	}
+	
 	const some = async (  ) => {  }
 
 	( async mainConfigMenu => {
@@ -882,25 +928,32 @@ const menuComand = args => {
 		     ( schemaCall ( 'saveFileConf', configMenuSave ) )
 		configInside.add ( 4 )
 		     ( schemaCall ( 'configFile', configFileTool ) )
-		
+		configInside.add ( 4 )
+		     ( schemaCall ( 'showConfig', showConfig ) )
+		configInside.add ( 4 )
+		     ( schemaCall ( 'showFileName', showName ) )		
 		const otMatch = configInside.match ( schemaTestGetCallGrp )
 
 		const res = otMatch ( optiones )
 
+		const newResCells = filtherAnd ( cells )( now => ( val, nowt ) => {
+		    return val && not ( now [ 0 ] == nowt [ 0 ] ) }, true )
+
+
 		const mathReslts = errorInMatchArg ( optiones.length )
 
-		const NotexistErros =  mathReslts ( res.length )
+		const NotexistErros =  mathReslts ( newResCells.length )
 
 		if ( NotexistErros ) { 
 
-		    res.forEach ( item => {
+		    newResCells.forEach ( item => {
 
 			if  ( schemaStatusGet ( item ) )
 			    ( schemaToGetFromResult ( item ) )
 			           .fun ( shemaGetArgs ( item ) )
 		    } )
 		} else helpConfig ( { status: false } )
-	    }
+	    } else helpConfig ( { status: false } )
 	} )(  )
     }
 
@@ -914,7 +967,6 @@ const menuComand = args => {
 	
 	FLAGSILENT = value
     }
-
     
     const requisit = async option => {
 
@@ -926,14 +978,11 @@ const menuComand = args => {
 
 	const fileSource = configurations.config (  ).fileInput
 	
-	print ( configurations.config ( ) )
+	print ( configurations.config (  ) )
 	print ( option )
 
-	Resolution ( configurations.config (  ).fileInput, configurations.config (  ).fileSwap )
-	
-	/*
-	  Resolution
-	  fileSource, ResultfileName  */
+	Resolution ( configurations.config (  ).fileInput,
+		     configurations.config (  ).fileSwap )
     }
 
     const exportTest = opt => {
@@ -949,6 +998,8 @@ const menuComand = args => {
     
     optioness.add( 1 )( schemaCall ( '--silent', silence ) ) // Flags
     optioness.add( 1 )( schemaCall ( '-S', silence ) )
+    optioness.add( 2 )( schemaCall ( '--test', exportTest ) ) // Test
+    optioness.add( 2 )( schemaCall ( '-t', exportTest ) ) 
     optioness.add( 2 )( schemaCall ( '--help', helpMenu ) ) // Control
     optioness.add( 2 )( schemaCall ( '-h', helpMenu ) )
     optioness.add( 2 )( schemaCall ( '--config', configureMenu ) )
@@ -957,7 +1008,16 @@ const menuComand = args => {
     optioness.add( 3 )( schemaCall ( '-r', requisit ) )
     optioness.add( 3 )( schemaCall ( '--export', exportTest ) )
     optioness.add( 3 )( schemaCall ( '-e', exportTest ) )
-    optioness.add( 9 )( schemaCall ( '--test', exportTest ) ) // Test
+
+
+    const checkSimbolStringSplit = testTo => string => {
+
+	const regx = "[a-zA-Z]{1,}" + testTo + "[a-zA-Z]{1,}"
+
+	const myregx = new RegExp ( regx )
+
+	return not ( myregx.test ( string ) )
+    }
 
     const funtSlt = simbol => someString => someString.split ( simbol )
 
@@ -993,6 +1053,7 @@ const menuComand = args => {
 
 	if ( isList ( I => I.length == 1 )( arrLis ) )
 	    return arrLis [ 0 ]
+	
 	return arrLis
     }
 
@@ -1009,12 +1070,12 @@ const menuComand = args => {
     const splitArroba = funtSlt ( '@' )
 
 
-    const MysplitEqual = Curry ( splitEqual )( checkEmptyList )
+    const MysplitEqual = Curry ( splitEqual )( checkEmptyList ( false ) )
     
-    const MysplitArroba = Curry ( splitArroba )( checkEmptyList )
+    const MysplitArroba = Curry ( splitArroba )( checkEmptyList ( false ) )
     
     const MysplitVirg = splitVirg
-
+    
 
     const mapSplitVirg = MyMap ( MysplitVirg )
 
@@ -1035,9 +1096,21 @@ const menuComand = args => {
     
     const compositionMapSplit = Curry ( MyApply ( mapSplitEqual )( isList (  ) ) )( CustonSplit )
 
+
+    const checkResultPathem = someArr => {
+
+	if ( someArr.length == 0 )
+	    return [ [ ] ]
+	else
+	    return someArr
+    }
     
     const cells = compositionMapSplit ( args )
 
+    const nonoCells = checkResultPathem ( cells )
+
+    print ( nonoCells )
+    
     const filtherAnd = arr => functt => arr.reduce ( ( val, now ) => {
 	// filther data
 
@@ -1046,12 +1119,14 @@ const menuComand = args => {
 	
 	return val
     }, [ arr [ 0 ] ] )
+
+    const notEqualValues = pri => secm => not ( pri == secm )
     
-    const newCells = filtherAnd ( cells )( now => ( val, nowt ) => {
-	return val && not ( now [ 0 ] == nowt [ 0 ] ) }, true )
+    const newCells = filtherAnd ( nonoCells )( now => ( accValues, nowt ) => {
+	return accValues && notEqualValues ( now [ 0 ] )( nowt [ 0 ] ) }, true )
 
     // test Error in Insert Of User
-    const testMatches = errorInMatchArg ( cells.length )
+    const testMatches = errorInMatchArg ( nonoCells.length )
 
     const ofMatch = optioness.match( schemaTestGetCallGrp )
 
@@ -1127,11 +1202,9 @@ const loadConfigurationsDefault = ( filepath = configurations.config (  ).config
 	    argumetsMain.push ( item )
     } )
 
-
     await loadConfigurationsDefault (  )
     
     menuComand ( argumetsMain )
-
     
 } )(  )
 
