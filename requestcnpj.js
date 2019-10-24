@@ -834,28 +834,29 @@ const menuComand = args => {
 
 	db.history.push ( db.out )
 
-	db.history.push ( db.history [ 2 ] )
-
 	let problem = false
 
 	let encontrado = { }
 
 	print ( "Listagem de Linhas Repetidas : " )
 
-	db.history.forEach ( ( item, indx ) => {
-	    
-	    conta = 1
+	db.history.forEach ( ( item, indx, arr ) => {
 
-	    encontrado = dataflow.search ( item.id, item.cnpj, true, db )
+	    for ( let i = 0; i != ( indx - 1 ) &&i < arr.length; i++ ) {
 
-	    if ( encontrado.result ) {
+		conta = 1
 
-		conta += 1
-		problem = problem || true 
+		if ( ( item.id == arr [ i ].id ) &&
+		     ( item.cnpj == arr [ i ].cnpj ) ) {
+
+		    conta += 1
+		    
+		    problem = problem || true 
+		}
+		
+		if ( conta > 1 )
+		    formataResultado ( schemaDataIntegrid ( indx, item ) )
 	    }
-
-	    if ( conta > 1 )
-		formataResultado ( schemaDataIntegrid ( indx, encontrado.data ) )
 	} )
 
 	if ( not ( problem ) )
