@@ -15,6 +15,8 @@ const CNPJREQUERTURL = 'http://receitaws.com.br/v1/cnpj/'
 
 const TIMESLEEPDEFAULT = 48
 
+const CONSTCNPJEMPTY = '00000000000000'
+
 const MICRSECONDSTIMEFORMULTIPLICATION = 1000
 
 let FLAGSILENT = false
@@ -25,6 +27,10 @@ const not = something => !something
 
 const truthness = something => not ( not ( something ) )
 
+const and = frist => secon => frist && secon
+
+const or = frist => secon => frist || secon
+
 const flagStop = something => {
 
     FLAGSILENT = true
@@ -34,7 +40,34 @@ const flagStop = something => {
     exit (  )
 }
 
-const schemaGetSul = something => something.data
+const schemaGetSul = something => {
+
+    if ( typeof ( something ) == 'object' ) {
+
+	if ( typeof ( something.data.msg ) == 'string' ) {
+	    
+	    something.data = {
+
+		atividade_principal: [
+		    {
+			code: "00.00-0-00",
+			text: 'nao existe'
+		    }
+		],
+		atividades_secundarias: [
+		    {
+			code: "00.00-0-00",
+			text: 'nao existe'
+		    }
+		],
+		cnpj: CONSTCNPJEMPTY,
+		novoCnpj: CONSTCNPJEMPTY
+	    }
+	}
+    }
+
+    return something.data
+}
 
 const schemaData = ( outData, historyData ) => {
 
@@ -59,6 +92,22 @@ const schemaGetResultStandat = ( data = {  } ) => {
 const schemaSendData = ( flag, dataInter ) => {
 
     return schemaStandatData ( flag, dataInter )
+}
+
+const schemaSendCNPJ = ( flag, dataInter, newCnpj ) => {
+
+    if ( typeof ( dataInter ) == 'object' )
+	dataInter [ 'novoCnpj' ] = newCnpj 
+    
+    return schemaSendData ( flag, dataInter )
+}
+
+const schemaEmpty = mensage => ( flag, dataInter, cnpj ) => {
+
+    if ( isObjectEmpty ( dataInter ) )
+	dataInter [ 'msg' ] = mensage
+
+    return schemaSendCNPJ ( flag, dataInter, cnpj )
 }
 
 const schemaSearchData = ( flag, dataInter ) => {
@@ -120,6 +169,16 @@ const completeZeros = ( cnpj, lim = 14 ) => {
 	return String ( cnpj )
     
     return String ( completeZeros ( '0' + String ( cnpj ) ) )
+}
+
+const checkEmptyCNPJ = someCNPJ => {
+
+    return someCNPJ !== ''
+}
+
+const isUnknowCNPJ = someCNPJ => {
+
+    return someCNPJ == CONSTCNPJEMPTY
 }
 
 const isChanNumber = variableString => {
@@ -206,7 +265,6 @@ const saveConfig = path => data => {
 
 		rest ( true )
 	    } ).catch ( err => {
-
 		errt ( false )
 	    } )
     } )
@@ -228,9 +286,12 @@ const loadFile = async filepathname => {
     if ( not ( fileExist ( filepathname ) ) ) {
 
 	await createResultFileName ( filepathname )( dataflow.getData (  ) )
+	dataflow.reset (  )
     } else {
 
 	actualData = openJSON ( filepathname )
+
+	print ( not ( isObjectSchemeData ( actualData ) ) )
 
 	if ( not ( isObjectSchemeData ( actualData ) ) )
 	    dataflow.reset (  )
@@ -241,12 +302,7 @@ const loadFile = async filepathname => {
 
 const createResultFileName = fileName => dataTo => {
 
-    return new Promise ( ( rest, errt ) => {
-	
-	saveFileJSON ( fileName, dataTo )
-	    .then ( res => rest ( res ) )
-	    .catch ( err => errt ( err ) )
-    } )
+    return saveFileJSON ( fileName, dataTo )
 }
 
 const readfileSource = filenameandpath => {
@@ -393,7 +449,6 @@ const isObjectSchemeData = objbj => {
     return ( not ( isObjectEmpty ( objbj ) ) && objbj.history.length >= 0 )
 }
 
-
 const dataflow = ( (  ) => {
 
     let data = {}
@@ -429,9 +484,9 @@ const dataflow = ( (  ) => {
 	return data.history
     }
     
-    const load = datanew => {
+    const load = ( datanew, flag = false ) => {
 
-	FLAGEMPTY = false
+	FLAGEMPTY = flag
 	data = schemaData ( datanew.out, datanew.history )
     }
 
@@ -466,7 +521,7 @@ const dataflow = ( (  ) => {
 		return schemaSearchData ( false,  [ ] )
 	    else
 		return schemaSearchData ( true, find )
-	}
+	} return schemaSearchData ( false,  [ ] ) 
     }
 
     const reset = _ => {
@@ -503,8 +558,13 @@ const reqsite = cnpjt => {
 
     return new Promise ( ( rest, errt ) => {
 
-	if ( cnpjt !== '' ) {
+	if ( checkEmptyCNPJ ( ActualCNPJ ) ) {
 
+	    if ( isUnknowCNPJ ( ActualCNPJ ) ) {
+
+		rest ( schemaEmpty ( " CNPJ VAZIO " )( false , {}, ActualCNPJ ) )
+	    }
+	    
 	    request.get ( url, ( err, res, body ) => {
 		if ( err )
 		    if ( res.statusCode !== 200 )
@@ -512,12 +572,12 @@ const reqsite = cnpjt => {
 
 		result = JSON.parse ( body )
 
-		rest ( schemaSendData ( true, result, ActualCNPJ ) )
+		rest ( schemaSendCNPJ ( true, result, ActualCNPJ ) )
 		
 	    } )
 	} else {
 	    
-	    rest ( schemaoSendData ( false, { } ) )
+	    rest ( schemaSendData ( false, { } ) )
 	}
     } )
 }
@@ -546,9 +606,9 @@ const Resolution = async ( fileSource, ResultFileName ) => {
 			    nowt.atividade_principal,
 			    nowt.atividades_secundarias,
 			    nowt.cnpj,
-			    nowt.newCnpj ) )
+			    nowt.novoCnpj ) )
 
-		    saveFileJSON ( ResultFileName )
+//		    saveFileJSON ( ResultFileName )
 
 		    formataResultado ( dataflow.car (  ) )
 		} ).catch ( async err => {
@@ -650,7 +710,7 @@ const genCSVFile = async (  ) => {
 
     saveFileString ( filenameArquive, stringsg ) 
 
-    print ( "Save!" )
+    print ( "Save! CSV" )
 }
 
 const genXLSX = _ => {
@@ -686,6 +746,8 @@ const genXLSX = _ => {
 	  + configurations.config (  ).formatFile
 
     fs.writeFileSync(fileNamePath, xls, 'binary')
+
+    print ( "Save! XLSX" )
 }
 
 const constuctorMatchParm = (  ) => {
@@ -836,28 +898,35 @@ const menuComand = args => {
 
 	let problem = false
 
-	let encontrado = { }
+	let encontrado = [  ]
 
-	print ( "Listagem de Linhas Repetidas : " )
+	print ( "Listagem de Linhas Repetidas, em Arquivo de Parse : " )
 
-	db.history.forEach ( ( item, indx, arr ) => {
+	for ( let j = 0; j < db.history.length; j++ ) {
 
-	    for ( let i = 0; i != ( indx - 1 ) &&i < arr.length; i++ ) {
+	    for ( let i = 0; i < db.history.length; i++ ) {
 
 		conta = 1
 
-		if ( ( item.id == arr [ i ].id ) &&
-		     ( item.cnpj == arr [ i ].cnpj ) ) {
+		if ( i != j ) {
 
-		    conta += 1
+		    if ( ( db.history[ j ].id == db.history[ i ].id ) &&
+			 ( db.history[ j ].cnpj == db.history[ i ].cnpj ) ) {
+
+			conta += 1
+			
+			problem = problem || true 
+		    }
 		    
-		    problem = problem || true 
+		    if ( conta > 1 ) {
+			
+			encontra = schemaDataIntegrid ( i, db.history [ i ] )
+			
+			formataResultado ( schemaDataIntegrid ( i, db.history[ i ] ) )
+		    }
 		}
-		
-		if ( conta > 1 )
-		    formataResultado ( schemaDataIntegrid ( indx, item ) )
 	    }
-	} )
+	}
 
 	if ( not ( problem ) )
 	    print ( "Tudo esta Ok!" )
@@ -885,8 +954,14 @@ const menuComand = args => {
 	    
 	    stringAA += '\nDigite algumas das Seguintes Opcoes para --config\n'
 
-	    stringAA += '\n   Sintaxe {opcao}@{valor}\n'
+	    stringAA += '\n   Sintaxe --config={opcao}@{valor}[,]?\n'
 	    stringAA += '\n   help\t\t: mostra o menu Atual'
+	    stringAA += '\n   time\t\t: seta tempo de espera em cada '
+	    stringAA += '\n                  requisicao'
+	    stringAA += '\n   fileSwap\t: seta arquivo de parse'
+	    stringAA += '\n   fileSource\t: seta arquivo de fonte de dados'
+	    stringAA += '\n   urlRequest\t: seta url da API'
+	    stringAA += '\n   formatFile\t: seta formato do arquivo em csv/xls',
 	    stringAA += '\n   saveFileConf\t: seta e salva novo arquivo '
 	    stringAA += '\n\t\t  de configuracao'
 	    stringAA += '\n   configFile\t: seleciona arquivo de '
@@ -911,26 +986,53 @@ const menuComand = args => {
 	    await saveConfigFile ( savename )
 	}
 
-	const configGeneralTool = optiona => async valuest => {
+	const configGeneralTool = ( savest = false, flgCast = false, flgFormat = false, flgStopa = false ) => optiona => async valuest => {
  
 	    const newConf = configurations.config ( )
 
-	    const updateConfig = async configToo => {
-		
-		configurations.loadConfigurations ( configToo )
+	    const optionExist = ( font = {} ) => opt => {
 
-		await saveConfigFile ( savename )
+		if ( typeof ( font [ opt ] ) == 'undefined' )
+		    return false
+
+		return true
 	    }
 
-	    newConf.configFile = savename
+	    const updateConfig = ( savename = configurations.config ( )
+				   .configFile ) =>
+		  async configTooNew => {
 
-	    configurations.loadConfigurations ( newConf )
+		configurations.loadConfigurations ( configTooNew )
 
-	    await saveConfigFile (  )
+		if ( savest )
+		    await saveConfigFile ( savename )
+	    }
 
-	    newConf.configFile = savename
+	    if ( optionExist ( newConf )( optiona ) ) {
 
-	    print ( configurations.config (  ) )
+		if ( flgFormat )
+		    valuest = ( valuest == 'csv' ) ? 'csv' : 'xlsx'
+		    
+		if ( flgCast )
+		    valuest = parseInt ( valuest )
+		
+		newConf [ optiona ] = valuest
+	    }
+
+	    let save = configurations.config ( ).configFile
+
+	    if ( savest ) {
+
+		await configGeneralTool (  )( 'configFile' )( valuest )
+		
+		save = valuest
+	    }
+	    
+	    await updateConfig ( save )( newConf )
+
+	    if ( flgStopa )
+		flagStop (  )
+		
 	}
 
 	const configFileTool = ( savename = configurations.config ( ).configFile ) => {
@@ -970,15 +1072,34 @@ const menuComand = args => {
 	    if ( truthness ( optiones ) ) {
 
 		configInside.add ( 1 )( schemaCall ( 'help', helpConfig ) )
-		configInside.add ( 2 )( schemaCall ( 'fileResult', some ) )
+		configInside.add ( 2 )
+		     ( schemaCall ( 'fileResult',
+			       configGeneralTool (  )( 'fileOutput' ) ) )
 		configInside.add ( 3 )
-		     ( schemaCall ( 'saveFileConf', configMenuSave ) )
+		     ( schemaCall ( 'configFile',
+			       configGeneralTool (  )( 'configFile' ) ) )
 		configInside.add ( 4 )
-		     ( schemaCall ( 'configFile', configFileTool ) )
+		     ( schemaCall ( 'formatFile',
+			       configGeneralTool ( false, false, true )( 'formatFile' ) ) )
+		configInside.add ( 4 )
+		     ( schemaCall ( 'fileSwap',
+			       configGeneralTool (  )( 'fileSwap' ) ) )
+		configInside.add ( 4 )
+		     ( schemaCall ( 'urlRequest',
+			       configGeneralTool (  )( 'urlRequest' ) ) )
+		configInside.add ( 4 )
+		     ( schemaCall ( 'fileSource',
+			       configGeneralTool (  )( 'fileInput' ) ) )
 		configInside.add ( 4 )
 		     ( schemaCall ( 'showConfig', showConfig ) )
 		configInside.add ( 4 )
-		     ( schemaCall ( 'showFileName', showName ) )	
+		     ( schemaCall ( 'showFileName', showName ) )
+		configInside.add ( 5 )
+		     ( schemaCall ( 'time',
+			       configGeneralTool ( false, true )( 'timeInSecondsWaitForSendRequest' ) ) )
+		configInside.add ( 7 )
+		     ( schemaCall ( 'saveFileConf',
+			       configGeneralTool ( true )(  ) ) )
 
 		const otMatch = configInside.match ( schemaTestGetCallGrp  )
 
@@ -994,7 +1115,7 @@ const menuComand = args => {
 
 			if  ( schemaStatusGet ( item ) )
 			    ( schemaToGetFromResult ( item ) )
-			           .fun ( shemaGetArgs ( item ) )
+			    .fun ( shemaGetArgs ( item ) )
 		    } )
 		} else helpConfig ( { status: false } )
 	    } else helpConfig ( { status: false } )
@@ -1014,15 +1135,7 @@ const menuComand = args => {
     
     const requisit = async option => {
 
-	const formatFileParse = '.json'
-
-	const fileName = option [ 0 ]
-	
-	const resultFileNamed = fileName + formatFileParse
-
-	const fileSource = configurations.config (  ).fileInput
-
-	print ( "Requisições de CNPJ" )
+	print ( "Requisicoes de CNPJ" )
 
 	Resolution ( configurations.config (  ).fileInput,
 		     configurations.config (  ).fileSwap )
@@ -1030,47 +1143,57 @@ const menuComand = args => {
 
     const exportTest = opt => {
 
-	const generateCSV = opt => {
+	const formatFileOut = optn => {
 
-	    genCSVFile (  )
+	    if ( not ( typeof ( optn ) == 'undefined' ) ) {
+		
+		genCSVFile (  )
+		genXLSX (  )
+	    }
 	}
-	
-	const generateXLS = someOpt => {
-	    
-	    genXLSX (  )
-	}
 
-	const HelpMenuExport = opt => {
+	const HelpMenuExport = optMenu => {
 
+	    let stringAA = ''
+/*
+	    if ( optMenu['status'] == false )
+		stringAA += 'Opcao Invalida'
+*/
 	    
+	    stringAA += '\nDigite algumas das Seguintes Opcoes para --export\n'
+
+	    stringAA += '\n   Sintaxe --export={opcao}@{valor}[,]?\n'
+	    stringAA += '\n   help\t\t: mostra o menu Atual'
+	    stringAA += '\n   format\t: seta formato csv/xls'
+	    stringAA += '\n                  '
+
+	    print ( stringAA )
+	    
+	    flagStop (  )
 	}
 
 	( async mainConfigMenu => {
 
-	    if ( truthness ( optiones ) ) {
+	    if ( truthness ( opt ) ) {
 
-		configInside.add ( 1 )( schemaCall ( 'help', HelpMenuExport ) )
-		configInside.add ( 2 )( schemaCall ( 'fileResult', some ) )
-		configInside.add ( 3 )
-		( schemaCall ( 'saveFileConf', configMenuSave ) )
-		configInside.add ( 4 )
-		( schemaCall ( 'configFile', configFileTool ) )
-		configInside.add ( 4 )
-		( schemaCall ( 'showConfig', showConfig ) )
-		configInside.add ( 4 )
-		( schemaCall ( 'showFileName', showName ) )	
+		const configInside = constuctorMatchParm (  )
+
+		configInside.add ( 1 )
+		( schemaCall ( 'help', HelpMenuExport ) )
+		configInside.add ( 2 )
+		( schemaCall ( 'format', formatFileOut) )
 
 		const otMatch = configInside.match ( schemaTestGetCallGrp  )
 
-		const res = otMatch ( optiones )
+		const res = otMatch ( opt )
 
-		const mathReslts = errorInMatchArg ( optiones.length )
+		const mathReslts = errorInMatchArg ( opt.length )
 
 		const NotexistErros =  mathReslts ( res.length )
 
 		if ( NotexistErros ) { 
 
-		    res.forEach ( item => {
+		    res.forEach ( item => { 
 
 			if  ( schemaStatusGet ( item ) )
 			    ( schemaToGetFromResult ( item ) )
@@ -1263,12 +1386,7 @@ const loadConfigurationsDefault = ( filepath = configurations.config (  ).config
 	configurations.reset (  )
     }
 
-    return new Promise ( ( rest, errt ) => {
-
-	saveConfigFile ( )
-	    .then ( res => rest ( res ) )
-	    .catch ( err => errt ( err ) )
-    } )
+    return saveConfigFile (  )
 }
 
 ( async main => {
