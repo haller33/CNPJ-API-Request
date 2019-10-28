@@ -291,8 +291,6 @@ const loadFile = async filepathname => {
 
 	actualData = openJSON ( filepathname )
 
-	print ( not ( isObjectSchemeData ( actualData ) ) )
-
 	if ( not ( isObjectSchemeData ( actualData ) ) )
 	    dataflow.reset (  )
 	else
@@ -492,7 +490,7 @@ const dataflow = ( (  ) => {
 
     const search = ( id, cnpj, flagDeep = false, dataTo = data ) => {
 
-	if ( not ( FLAGEMPTY ) ) {
+	if ( and ( not ( FLAGEMPTY ) )( not ( typeof ( data.out.cnpj ) == 'undefined' ) ) ) {
 	    
 	    let find = []
 	
@@ -573,11 +571,10 @@ const reqsite = cnpjt => {
 		result = JSON.parse ( body )
 
 		rest ( schemaSendCNPJ ( true, result, ActualCNPJ ) )
-		
 	    } )
 	} else {
 	    
-	    rest ( schemaSendData ( false, { } ) )
+	    rest ( schemaSendCNPJ ( false, { }, ActualCNPJ ) )
 	}
     } )
 }
@@ -588,7 +585,7 @@ const Resolution = async ( fileSource, ResultFileName ) => {
 
     await loadFile ( ResultFileName )
 
-    for ( i = 0; i < fileArry.length; i++) {
+    for ( i = 0; i < ( fileArry.length - 1); i++) {
 
 	ncpj = ( fileArry [ i ] ).data
 	idData = ( fileArry [ i ] ).id
@@ -608,7 +605,7 @@ const Resolution = async ( fileSource, ResultFileName ) => {
 			    nowt.cnpj,
 			    nowt.novoCnpj ) )
 
-//		    saveFileJSON ( ResultFileName )
+		    saveFileJSON ( ResultFileName )
 
 		    formataResultado ( dataflow.car (  ) )
 		} ).catch ( async err => {
@@ -622,8 +619,8 @@ const Resolution = async ( fileSource, ResultFileName ) => {
 	    
 	    await sleep ( configurations.config (  )
 			  .timeInSecondsWaitForSendRequest )
-	}
-    }
+	} 
+    } print ( "Terminado" )
 }
 
 
@@ -668,6 +665,25 @@ const gencsvArry = _ => {
 
 	return stringa
     }
+
+    const schemaDataToString = item => {
+
+	if ( typeof ( item.code ) == 'object' ) {
+	    
+	    return {
+		id: item.id,
+		text: item.code[0].text.replace(';',':'),
+		cnpj: item.cnpj,
+		code: item.code[0].code
+	    }
+	}
+	return {
+	    id: item.id,
+	    text: 'nao existe',
+	    cnpj: CONSTCNPJEMPTY,
+	    code: '00.00-0-00'
+	}
+    }
     
     let lineCabecalho = genStringLinha ( "ID", "RAMO", "CNPJ", "CODE" )
 
@@ -677,12 +693,16 @@ const gencsvArry = _ => {
     
     dataCDR.forEach ( item => {
 
+	item = schemaDataToString ( item )
+	
 	fileArr.push (
 	    genStringLinha ( item.id ,item.text, item.cnpj, item.code )
 	)
     } )
-    
-    fileArr.push ( genStringLinha ( dataFile ) )
+
+    dataFile = schemaDataToString ( dataFile )
+
+    fileArr.push ( genStringLinha ( dataFile.id ,dataFile.text, dataFile.cnpj, dataFile.code ) )
     
     return fileArr
 }
@@ -699,6 +719,8 @@ const genStringCSV = arry => {
 const genCSVFile = async (  ) => {
 
     const filenameArquive = configurations.config (  ).fileOutput
+
+    const formatFile = configurations.config (  ).formatFile
     
     loadFile ( configurations.config (  ).fileSwap )
 
@@ -706,15 +728,18 @@ const genCSVFile = async (  ) => {
 
     stringsg = genStringCSV ( csvArray )
 
-    // print (stringsg)
+    const fileto = filenameArquive + '.' + formatFile
 
-    saveFileString ( filenameArquive, stringsg ) 
+    saveFileString (fileto , stringsg ) 
 
     print ( "Save! CSV" )
+    print ( "File: " + fileto )
 }
 
 const genXLSX = _ => {
 
+    loadFile ( configurations.config (  ).fileSwap )
+    
     rows = []
 
     const cell = data => {
@@ -748,6 +773,7 @@ const genXLSX = _ => {
     fs.writeFileSync(fileNamePath, xls, 'binary')
 
     print ( "Save! XLSX" )
+    print ( "File: " + fileNamePath )
 }
 
 const constuctorMatchParm = (  ) => {
@@ -865,7 +891,6 @@ const menuComand = args => {
 
 	stringAA += '\n   --help|-h\t: mostra o menu Atual'
 	stringAA += '\n   --silent|-S\t: desabilita modo verboso'
-	stringAA += '\n   --test|-t\t: testa funcionalidades'
 	stringAA += '\n   --check|-ck\t: checa integridade do database'
 	stringAA += '\n   --config|-c\t: configura aplicacao,'
 	stringAA += '\n                  parametros separados por virgula.'
@@ -1141,24 +1166,25 @@ const menuComand = args => {
 		     configurations.config (  ).fileSwap )
     }
 
-    const exportTest = opt => {
+    const exportData = opt => {
 
-	const formatFileOut = optn => {
+	const formatFileOut = ( optn = configurations.config (  ).formatFile ) => {
+	    if ( optn == 'csv' ) {
 
-	    if ( not ( typeof ( optn ) == 'undefined' ) ) {
+		let congig = configurations.config (  )
+
+		congig.formatFile = 'csv'
+
+		configurations.loadConfigurations ( congig )
 		
 		genCSVFile (  )
-		genXLSX (  )
-	    }
+		
+	    } else genXLSX (  )
 	}
-
+	
 	const HelpMenuExport = optMenu => {
 
 	    let stringAA = ''
-/*
-	    if ( optMenu['status'] == false )
-		stringAA += 'Opcao Invalida'
-*/
 	    
 	    stringAA += '\nDigite algumas das Seguintes Opcoes para --export\n'
 
@@ -1199,8 +1225,8 @@ const menuComand = args => {
 			    ( schemaToGetFromResult ( item ) )
 			    .fun ( shemaGetArgs ( item ) )
 		    } )
-		} else helpConfig ( { status: false } )
-	    } else helpConfig ( { status: false } )
+		} else HelpMenuExport ( { status: false } )
+	    } else formatFileOut (  )
 	} )(  )
 
     }
@@ -1209,8 +1235,6 @@ const menuComand = args => {
     
     optioness.add( 1 )( schemaCall ( '--silent', silence ) ) // Flags
     optioness.add( 1 )( schemaCall ( '-S', silence ) )
-    optioness.add( 2 )( schemaCall ( '--test', exportTest ) ) // Test
-    optioness.add( 2 )( schemaCall ( '-t', exportTest ) ) 
     optioness.add( 2 )( schemaCall ( '--help', helpMenu ) ) // Control
     optioness.add( 2 )( schemaCall ( '-h', helpMenu ) )
     optioness.add( 2 )( schemaCall ( '--config', configureMenu ) )
@@ -1219,8 +1243,8 @@ const menuComand = args => {
     optioness.add( 2 )( schemaCall ( '-ck', checkIntegrit ) )
     optioness.add( 3 )( schemaCall ( '--request', requisit ) )
     optioness.add( 3 )( schemaCall ( '-r', requisit ) )
-    optioness.add( 3 )( schemaCall ( '--export', exportTest ) )
-    optioness.add( 3 )( schemaCall ( '-e', exportTest ) )
+    optioness.add( 3 )( schemaCall ( '--export', exportData ) )
+    optioness.add( 3 )( schemaCall ( '-e', exportData ) )
     
 
     const funtSlt = simbol => someString => someString.split ( simbol )
@@ -1344,31 +1368,6 @@ const menuComand = args => {
 		( schemaToGetFromResult ( it ) ).fun ( shemaGetArgs ( it ) )
 	} )
     } else helpMenu ( { error: true } )
-}
-
-const oldsMain = _ => {
-
-    const filenameArquive = 'testjsonOld.xlsx'
-    
-    loadFile ('jsonOld.json.bkp')
-
-/*    csvArray = gencsvArry (  )
-
-    stringsg = genStringCSV ( csvArray )
-
-//    print ( stringsg )
-
-    saveFileString ( filenameArquive, stringsg ) 
-
-    print ( "Save!" )
-*/
-
-    Resolution (  )
-    ///tests (  )
-    
-    genXLSX (  )
-
-
 }
 
 const loadConfigurationsDefault = ( filepath = configurations.config (  ).configFile ) => {
