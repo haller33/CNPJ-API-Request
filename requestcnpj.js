@@ -164,7 +164,7 @@ const formataResultado = obb => {
 
 	const inicio = '### '
 	const fim = ' : ###'
-	return inicio + 'Id: '+ obj.id + ' Cnpj: ' + obj.cnpj +
+	return inicio + 'Id: '+ obj.id + '\tCnpj: ' + obj.cnpj +
 	    ' Code: ' + obj.code[0].code + fim
     }
     
