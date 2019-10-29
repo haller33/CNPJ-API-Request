@@ -160,7 +160,15 @@ const print = something => {
 
 const formataResultado = obb => {
 
-    print ( obb )
+    const stringFlyObj = obj => {
+
+	const inicio = '### '
+	const fim = ' : ###'
+	return inicio + 'Id: '+ obj.id + ' Cnpj: ' + obj.cnpj +
+	    ' Code: ' + obj.code[0].code + fim
+    }
+    
+    print ( stringFlyObj ( obb ) )
 }
 
 const completeZeros = ( cnpj, lim = 14 ) => {
