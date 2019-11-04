@@ -47,10 +47,22 @@ const gencsvArry = arrLinesCSV  => {
 
     const DELIMITER = ','
 
+    const checkIntegrit = stringLine => {
+
+	if ( stringLine [ 0 ] == '' )
+	    return false
+
+	return true
+    }
+
+    let itemNow = ''
     arrLinesCSV.forEach ( item => {
-	fileArr.push ( item.split ( DELIMITER ) )
+
+	itemNow = item.split ( DELIMITER )
+	if ( checkIntegrit ( itemNow ) )
+	    fileArr.push ( itemNow )
     } )
-    
+
     return fileArr
 }
 
@@ -81,7 +93,7 @@ const genStringCSVFromStringLines = arry => {
 
     let ArrToString = ''
 
-    const DELIMITER = ';\n'
+    const DELIMITER = '\n'
 
     arry.forEach( lines => ArrToString += lines + DELIMITER )
 
