@@ -588,47 +588,54 @@ const reqsite = cnpjt => {
 }
 
 const Resolution = async ( fileSource, ResultFileName ) => {
-    
-    let fileArry = readfileSource ( fileSource )
 
-    await loadFile ( ResultFileName )
+    if ( fileExist ( fileSource ) ) {
 
-    for ( i = 0; i < ( fileArry.length - 1); i++) {
+	let fileArry = readfileSource ( fileSource )
 
-	ncpj = ( fileArry [ i ] ).data
-	idData = ( fileArry [ i ] ).id
+	await loadFile ( ResultFileName )
 
-	if ( not ( dataflow.search ( idData, ncpj ).resut ) ) {
-   
-	    reqsite ( ncpj )
-		.then ( res => {
+	for ( i = 0; i < ( fileArry.length - 1); i++) {
 
-		    const nowt = schemaGetSul ( res )
+	    ncpj = ( fileArry [ i ] ).data
+	    idData = ( fileArry [ i ] ).id
 
-		    dataflow.add (
-			shemaDataQuest (
-			    idData,
-			    nowt.atividade_principal,
-			    nowt.atividades_secundarias,
-			    nowt.cnpj,
-			    nowt.novoCnpj ) )
+	    if ( not ( dataflow.search ( idData, ncpj ).resut ) ) {
+		
+		reqsite ( ncpj )
+		    .then ( res => {
 
-		    saveFileJSON ( ResultFileName )
+			const nowt = schemaGetSul ( res )
 
-		    formataResultado ( dataflow.car (  ) )
-		} ).catch ( async err => {
+			dataflow.add (
+			    shemaDataQuest (
+				idData,
+				nowt.atividade_principal,
+				nowt.atividades_secundarias,
+				nowt.cnpj,
+				nowt.novoCnpj ) )
 
-		    // print ( dataflow.getData (  ) )
-		    // throw err // DEPRECATED
-		    print ( "Esperando Resposta Do Servidor" )
-		    print ( "..." )
-		    waitForServer (  )
-		} )
-	    
-	    await sleep ( configurations.config (  )
-			  .timeInSecondsWaitForSendRequest )
-	} 
-    } print ( "Terminado" )
+			saveFileJSON ( ResultFileName )
+
+			formataResultado ( dataflow.car (  ) )
+		    } ).catch ( async err => {
+
+			// print ( dataflow.getData (  ) )
+			// throw err // DEPRECATED
+			print ( "Esperando Resposta Do Servidor" )
+			print ( "..." )
+			waitForServer (  )
+		    } )
+		
+		await sleep ( configurations.config (  )
+			      .timeInSecondsWaitForSendRequest )
+	    } 
+	} print ( "Terminado" )
+    } else {
+
+	print ( "Coloque o arquivo de fonte dos CNPJ's com o nome " +
+		configurations.config (  ).fileInput )
+    }
 }
 
 
@@ -1124,12 +1131,12 @@ const menuComand = args => {
 		     ( schemaCall ( 'fileSource',
 			       configGeneralTool (  )( 'fileInput' ) ) )
 		configInside.add ( 4 )
+		     ( schemaCall ( 'time',
+			       configGeneralTool ( false, true )( 'timeInSecondsWaitForSendRequest' ) ) )
+		configInside.add ( 4 )
 		     ( schemaCall ( 'showConfig', showConfig ) )
 		configInside.add ( 4 )
 		     ( schemaCall ( 'showFileName', showName ) )
-		configInside.add ( 5 )
-		     ( schemaCall ( 'time',
-			       configGeneralTool ( false, true )( 'timeInSecondsWaitForSendRequest' ) ) )
 		configInside.add ( 7 )
 		     ( schemaCall ( 'saveFileConf',
 			       configGeneralTool ( true )(  ) ) )
@@ -1411,6 +1418,7 @@ const loadConfigurationsDefault = ( filepath = configurations.config (  ).config
     menuComand ( argumetsMain )
     
 } )(  )
+
 
 
 
